@@ -1,6 +1,5 @@
 package com.example.covault.utils;
 
-import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -32,13 +31,5 @@ public class JWTUtility {
         byte[] randomBytes = new byte[64]; // 512 bits
         new SecureRandom().nextBytes(randomBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
-    }
-
-    public Claims validateToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(Keys.hmacShaKeyFor(jwtSecret.getBytes()))
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
     }
 }

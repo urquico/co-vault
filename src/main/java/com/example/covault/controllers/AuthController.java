@@ -3,6 +3,7 @@ package com.example.covault.controllers;
 import com.example.covault.dtos.ApiResponse;
 import com.example.covault.dtos.auth.LoginRequestDto;
 import com.example.covault.entities.RefreshTokens;
+import com.example.covault.entities.RefreshTokensId;
 import com.example.covault.entities.Users;
 import com.example.covault.repositories.RefreshTokenRepository;
 import com.example.covault.repositories.UserRepository;
@@ -34,22 +35,36 @@ public class AuthController {
     private final CookieUtility cookieUtility;
 
     @PostMapping("/login")
-    public ApiResponse<Object> login(@RequestBody LoginRequestDto req, HttpServletResponse response) {
+    public ApiResponse<Object> login(
+            @RequestBody LoginRequestDto req,
+            HttpServletResponse response
+    ) {
         Users user = userRepository.findByEmail(req.getEmail()).orElse(null);
         if (user == null)
             return new ApiResponse<>("User not found", HttpStatus.OK, null);
 
-        // Delete all refresh tokens
-        refreshTokenRepository.deleteByUserId(user.getId());
-
         String accessToken = jwtUtility.generateAccessToken(user.getId(), user.getEmail());
         String refreshToken = jwtUtility.generateRefreshToken();
 
-        //Store hashed refresh token
-        RefreshTokens refreshTokens = new RefreshTokens();
-        refreshTokens.setUserId(user.getId());
+        // Find existing token
+        RefreshTokens refreshTokens = refreshTokenRepository.findById_UserIdAndId_Device(user.getId(), "Macbook").orElse(null);
+        Instant now = Instant.now();
+
+        if (refreshTokens == null) {
+            refreshTokens = new RefreshTokens();
+            RefreshTokensId refreshTokenId = new RefreshTokensId();
+
+            refreshTokenId.setUserId(user.getId());
+            refreshTokenId.setDevice("Macbook");
+
+            refreshTokens.setId(refreshTokenId);
+            refreshTokens.setCreatedAt(now);
+        }
+
         refreshTokens.setTokenHash(refreshToken);
-        refreshTokens.setExpiresAt(Instant.now().plus(1, ChronoUnit.DAYS));
+        refreshTokens.setExpiresAt(now.plus(1, ChronoUnit.DAYS));
+        refreshTokens.setUpdatedAt(now);
+
         refreshTokenRepository.save(refreshTokens);
 
         ResponseCookie accessCookie = cookieUtility.createHttpOnlyCookie("access_token", accessToken, 15 * 60);
@@ -74,7 +89,7 @@ public class AuthController {
             return new ApiResponse<>("UNAUTHORIZED", HttpStatus.OK, null);
         }
 
-        Long userId = stored.getUserId();
+        Long userId = stored.getId().getUserId();
 
         Users user = userRepository.findById(userId).orElse(null);
         if (user == null) {
@@ -84,9 +99,11 @@ public class AuthController {
         // Rotate tokens
         String newAccess = jwtUtility.generateAccessToken(user.getId(), user.getEmail());
         String newRefresh = jwtUtility.generateRefreshToken();
+        Instant now = Instant.now();
 
         stored.setTokenHash(newRefresh); // store directly or hashed
-        stored.setExpiresAt(Instant.now().plus(30, ChronoUnit.DAYS));
+        stored.setExpiresAt(now.plus(1, ChronoUnit.DAYS));
+        stored.setUpdatedAt(now);
         refreshTokenRepository.save(stored);
 
         response.addHeader(HttpHeaders.SET_COOKIE,
@@ -102,7 +119,7 @@ public class AuthController {
     public ApiResponse<Object> logout(HttpServletRequest request, HttpServletResponse response) {
         Long userId = cookieUtility.getUserIdFromAccessCookie(request);
         if (userId != null) {
-            refreshTokenRepository.deleteByUserId(userId);
+            refreshTokenRepository.deleteById_UserIdAndId_Device(userId, "Macbook");
         }
 
         // Clear cookies
