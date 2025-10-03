@@ -1,6 +1,6 @@
 package com.example.covault.seeders;
 
-import com.example.covault.entities.User;
+import com.example.covault.entities.Users;
 import com.example.covault.interfaces.DatabaseSeeder;
 import com.example.covault.repositories.UserRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +26,7 @@ public class UserSeeder implements DatabaseSeeder {
 
         if (userRepository.count() == 0) {
             log.info("🌱 Seeding initial User...");
-            User user = new User();
+            Users user = new Users();
             user.setEmail("urquico.dev@gmail.com");
             userRepository.save(user);
             log.info("✅ User seeding complete.");

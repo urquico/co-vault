@@ -1,6 +1,8 @@
 spring:
   application:
     name: covault
+    jwt:
+      secret: f7c2e6a1b9d84f40a8c6d3e5e19f79c1f42a7d8e3a4c6b0f93a2d5b8c7e4f2a1
   
   datasource:
     url: jdbc:mysql://localhost:3306/co_vault
@@ -17,4 +19,4 @@ spring:
   app:
     seed:
       all: true
-      user: true
+      user: false
