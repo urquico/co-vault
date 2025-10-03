@@ -10,16 +10,10 @@ import lombok.Setter;
 @Getter
 @Table(name = "system_messages")
 public class ZZZSystemMessages {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
 
+    @Id
     @Column(name = "message_key", length = 100, nullable = false, unique = true)
     private String messageKey;
-
-    @Column(name = "locale", length = 10, nullable = false)
-    private String locale;
 
     @Column(name = "message_text", length = 500, nullable = false)
     private String messageText;
@@ -27,4 +21,7 @@ public class ZZZSystemMessages {
     @Enumerated(EnumType.STRING)
     @Column(name = "message_type", length = 20)
     private MessageType messageType;
+
+    @Column(name = "status_code")
+    private int statusCode;
 }

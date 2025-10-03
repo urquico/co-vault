@@ -1,26 +1,23 @@
 package com.example.covault.dtos;
 
+import com.example.covault.enums.SystemMessageType;
+import com.example.covault.utils.ZZZSystemMessagesUtility;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
-import org.springframework.http.HttpStatus;
 
 import java.time.Instant;
 
 @Data
-@Setter
-@Getter
 @NoArgsConstructor
 public class ApiResponse<T> {
     private String message;
-    private HttpStatus status;
-    private T Data;
+    private int status;
+    private T data;
     private String timeStamp = Instant.now().toString();
 
-    public ApiResponse(String message, HttpStatus status, T Data) {
-        this.message = message;
-        this.status = status;
-        this.Data = Data;
+    public ApiResponse(SystemMessageType systemMessageType, ZZZSystemMessagesUtility systemMessagesUtility, T data) {
+        this.message = systemMessagesUtility.getMessageByKey(systemMessageType).getMessageText();
+        this.status = systemMessagesUtility.getMessageByKey(systemMessageType).getStatusCode();
+        this.data = data;
     }
 }

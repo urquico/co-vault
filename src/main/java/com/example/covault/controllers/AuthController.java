@@ -5,17 +5,17 @@ import com.example.covault.dtos.auth.LoginRequestDto;
 import com.example.covault.entities.RefreshTokens;
 import com.example.covault.entities.RefreshTokensId;
 import com.example.covault.entities.Users;
+import com.example.covault.enums.SystemMessageType;
 import com.example.covault.repositories.RefreshTokenRepository;
 import com.example.covault.repositories.UserRepository;
 import com.example.covault.utils.CookieUtility;
 import com.example.covault.utils.JWTUtility;
+import com.example.covault.utils.ZZZSystemMessagesUtility;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,9 +30,9 @@ import java.time.temporal.ChronoUnit;
 public class AuthController {
     private final JWTUtility jwtUtility;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
     private final CookieUtility cookieUtility;
+    private final ZZZSystemMessagesUtility systemMessage;
 
     @PostMapping("/login")
     public ApiResponse<Object> login(
@@ -41,7 +41,7 @@ public class AuthController {
     ) {
         Users user = userRepository.findByEmail(req.getEmail()).orElse(null);
         if (user == null)
-            return new ApiResponse<>("User not found", HttpStatus.OK, null);
+            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
 
         String accessToken = jwtUtility.generateAccessToken(user.getId(), user.getEmail());
         String refreshToken = jwtUtility.generateRefreshToken();
@@ -73,27 +73,27 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
         response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
-        return new ApiResponse<>("Success", HttpStatus.OK, null);
+        return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
     }
 
     @PostMapping("/refresh")
     public ApiResponse<Object> refresh(HttpServletRequest request, HttpServletResponse response) {
         String refreshToken = cookieUtility.readCookieValue(request, "refresh_token");
         if (refreshToken == null) {
-            return new ApiResponse<>("No Refresh Token found", HttpStatus.OK, null);
+            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
         }
 
         // Find stored token for user and verify match
         RefreshTokens stored = refreshTokenRepository.findByTokenHash(refreshToken).orElse(null);
         if (stored == null || stored.getExpiresAt().isBefore(Instant.now())) {
-            return new ApiResponse<>("UNAUTHORIZED", HttpStatus.OK, null);
+            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
         }
 
         Long userId = stored.getId().getUserId();
 
         Users user = userRepository.findById(userId).orElse(null);
         if (user == null) {
-            return new ApiResponse<>("User not found", HttpStatus.OK, null);
+            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
         }
 
         // Rotate tokens
@@ -111,7 +111,7 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE,
                 cookieUtility.createHttpOnlyCookie("refresh_token", newRefresh, 30 * 24 * 60 * 60).toString());
 
-        return new ApiResponse<>("SUCCESS", HttpStatus.OK, null);
+        return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
     }
 
 
@@ -129,6 +129,6 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, clearAccess.toString());
         response.addHeader(HttpHeaders.SET_COOKIE, clearRefresh.toString());
 
-        return new ApiResponse<>("SUCCESS", HttpStatus.OK, null);
+        return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
     }
 }
