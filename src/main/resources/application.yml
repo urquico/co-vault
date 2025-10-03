@@ -20,3 +20,5 @@ spring:
     seed:
       all: true
       user: false
+    task:
+      refreshTokenCleanUp: true
