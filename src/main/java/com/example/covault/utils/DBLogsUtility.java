@@ -36,5 +36,30 @@ public class DBLogsUtility {
         errorLogsRepository.save(log);
     }
 
+    public String[] getCallerInfo() {
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
 
+        boolean foundApiResponse = false;
+
+        for (StackTraceElement element : stackTrace) {
+            String className = element.getClassName();
+
+            // Skip until after ApiResponse constructor
+            if (className.contains("ApiResponse")) {
+                foundApiResponse = true;
+                continue;
+            }
+
+            if (foundApiResponse) {
+                // First frame after ApiResponse is the real caller
+                return new String[]{
+                        element.getClassName(),
+                        element.getMethodName(),
+                        String.valueOf(element.getLineNumber())
+                };
+            }
+        }
+
+        return new String[]{"UnknownClass", "UnknownMethod", "-1"};
+    }
 }
