@@ -39,41 +39,45 @@ public class AuthController {
             @RequestBody LoginRequestDto req,
             HttpServletResponse response
     ) {
-        Users user = userRepository.findByEmail(req.getEmail()).orElse(null);
-        if (user == null)
+        try {
+            Users user = userRepository.findByEmail(req.getEmail()).orElse(null);
+            if (user == null)
+                return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
+
+            String accessToken = jwtUtility.generateAccessToken(user.getId(), user.getEmail());
+            String refreshToken = jwtUtility.generateRefreshToken();
+
+            // Find existing token
+            RefreshTokens refreshTokens = refreshTokenRepository.findById_UserIdAndId_Device(user.getId(), "Macbook").orElse(null);
+            Instant now = Instant.now();
+
+            if (refreshTokens == null) {
+                refreshTokens = new RefreshTokens();
+                RefreshTokensId refreshTokenId = new RefreshTokensId();
+
+                refreshTokenId.setUserId(user.getId());
+                refreshTokenId.setDevice("Macbook");
+
+                refreshTokens.setId(refreshTokenId);
+                refreshTokens.setCreatedAt(now);
+            }
+
+            refreshTokens.setTokenHash(refreshToken);
+            refreshTokens.setExpiresAt(now.plus(1, ChronoUnit.DAYS));
+            refreshTokens.setUpdatedAt(now);
+
+            refreshTokenRepository.save(refreshTokens);
+
+            ResponseCookie accessCookie = cookieUtility.createHttpOnlyCookie("access_token", accessToken, 15 * 60);
+            ResponseCookie refreshCookie = cookieUtility.createHttpOnlyCookie("refresh_token", refreshToken, 1 * 24 * 60 * 60);
+
+            response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+            response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+
             return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
-
-        String accessToken = jwtUtility.generateAccessToken(user.getId(), user.getEmail());
-        String refreshToken = jwtUtility.generateRefreshToken();
-
-        // Find existing token
-        RefreshTokens refreshTokens = refreshTokenRepository.findById_UserIdAndId_Device(user.getId(), "Macbook").orElse(null);
-        Instant now = Instant.now();
-
-        if (refreshTokens == null) {
-            refreshTokens = new RefreshTokens();
-            RefreshTokensId refreshTokenId = new RefreshTokensId();
-
-            refreshTokenId.setUserId(user.getId());
-            refreshTokenId.setDevice("Macbook");
-
-            refreshTokens.setId(refreshTokenId);
-            refreshTokens.setCreatedAt(now);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-
-        refreshTokens.setTokenHash(refreshToken);
-        refreshTokens.setExpiresAt(now.plus(1, ChronoUnit.DAYS));
-        refreshTokens.setUpdatedAt(now);
-
-        refreshTokenRepository.save(refreshTokens);
-
-        ResponseCookie accessCookie = cookieUtility.createHttpOnlyCookie("access_token", accessToken, 15 * 60);
-        ResponseCookie refreshCookie = cookieUtility.createHttpOnlyCookie("refresh_token", refreshToken, 1 * 24 * 60 * 60);
-
-        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
-        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
-
-        return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
     }
 
     @PostMapping("/refresh")
