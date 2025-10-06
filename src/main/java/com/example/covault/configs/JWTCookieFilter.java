@@ -1,7 +1,6 @@
 package com.example.covault.configs;
 
 import com.example.covault.entities.Users;
-import com.example.covault.exceptions.InvalidJWTException;
 import com.example.covault.repositories.UserRepository;
 import com.example.covault.utils.CookieUtility;
 import io.jsonwebtoken.JwtException;
@@ -11,7 +10,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -22,7 +20,6 @@ import java.io.IOException;
 
 @Slf4j
 @RequiredArgsConstructor
-@Configuration
 public class JWTCookieFilter extends OncePerRequestFilter {
     private final UserDetailsService userDetailsService;
     private final CookieUtility cookieUtility;
@@ -43,11 +40,20 @@ public class JWTCookieFilter extends OncePerRequestFilter {
                 Users user = userRepository.findById(userId).orElse(null);
                 request.setAttribute("user", user);
             } catch (JwtException e) {
-                // Unauthenticated
                 log.error(e.getMessage());
-                throw new InvalidJWTException("Invalid or expired JWT token");
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"message\": \"Invalid or expired JWT token\"}");
+                return; // Stop here, don't continue filterChain
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String path = request.getRequestURI();
+        log.info("shouldNotFilter [{}] = {}", path, path.matches(".*/api/v1/auth/(login|register)(/)?$"));
+        return path.matches(".*/api/v1/auth/(login|register)(/)?$");
     }
 }

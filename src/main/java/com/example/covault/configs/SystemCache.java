@@ -10,6 +10,6 @@ import java.util.List;
 @Component
 @Getter
 @Setter
-public class SystemMessagesCache {
+public class SystemCache {
     private List<ZZZSystemMessages> messages;
 }

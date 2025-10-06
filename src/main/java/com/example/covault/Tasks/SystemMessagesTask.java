@@ -1,6 +1,6 @@
 package com.example.covault.Tasks;
 
-import com.example.covault.configs.SystemMessagesCache;
+import com.example.covault.configs.SystemCache;
 import com.example.covault.entities.ZZZSystemMessages;
 import com.example.covault.repositories.ZZZSystemMessagesRepository;
 import jakarta.annotation.PostConstruct;
@@ -16,7 +16,7 @@ import java.util.List;
 public class SystemMessagesTask {
 
     private final ZZZSystemMessagesRepository systemMessagesRepository;
-    private final SystemMessagesCache systemMessagesCache;
+    private final SystemCache systemCache;
 
     @PostConstruct
     public void setup() {
@@ -24,7 +24,7 @@ public class SystemMessagesTask {
         List<ZZZSystemMessages> systemMessagesList = systemMessagesRepository.findAll();
 
         // Save to cache
-        systemMessagesCache.setMessages(systemMessagesList);
+        systemCache.setMessages(systemMessagesList);
 
         // Log how many messages were cached
         log.info("SystemMessagesTask: Cached {} system messages", systemMessagesList.size());

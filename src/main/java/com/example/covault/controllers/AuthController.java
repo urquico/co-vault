@@ -1,11 +1,12 @@
 package com.example.covault.controllers;
 
-import com.example.covault.dtos.ApiResponse;
+import com.example.covault.dtos.APIResponse;
 import com.example.covault.dtos.auth.LoginRequestDto;
 import com.example.covault.entities.RefreshTokens;
 import com.example.covault.entities.RefreshTokensId;
 import com.example.covault.entities.Users;
 import com.example.covault.enums.SystemMessageType;
+import com.example.covault.exceptions.APIException;
 import com.example.covault.repositories.RefreshTokenRepository;
 import com.example.covault.repositories.UserRepository;
 import com.example.covault.utils.CookieUtility;
@@ -33,13 +34,18 @@ public class AuthController {
     private final ZZZSystemMessagesUtility systemMessage;
 
     @PostMapping("/login")
-    public ApiResponse<Object> login(
+    public APIResponse<Void> login(
             @RequestBody LoginRequestDto req,
             HttpServletResponse response
     ) {
         Users user = userRepository.findByEmail(req.getEmail()).orElse(null);
         if (user == null)
-            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, null);
+            throw new APIException(
+                    SystemMessageType.USER_NOT_FOUND,
+                    null,
+                    Map.of("req", req, "response", response),
+                    systemMessage
+            );
 
         try {
             String accessToken = jwtUtility.generateAccessToken(user.getId(), user.getEmail());
@@ -73,42 +79,50 @@ public class AuthController {
             response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
             response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
-            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, user.getId());
+            return new APIResponse<>(SystemMessageType.SUCCESS, null, systemMessage);
         } catch (Exception e) {
-            return new ApiResponse<>(
-                    SystemMessageType.ERROR,
-                    systemMessage,
+            throw new APIException(
+                    SystemMessageType.SERVER_ERROR,
                     null,
-                    Map.of(
-                            "errorMessage", e.getMessage(),
-                            "exception", e
-                    ),
-                    user.getId()
-            );
+                    Map.of("req", req, "response", response),
+                    systemMessage);
         }
     }
 
     @PostMapping("/refresh")
-    public ApiResponse<Object> refresh(
+    public APIResponse<Void> refresh(
+            @RequestAttribute("user") Users user,
             HttpServletRequest request,
             HttpServletResponse response) {
         try {
+            if (user == null) {
+                throw new APIException(
+                        SystemMessageType.USER_NOT_FOUND,
+                        null,
+                        Map.of("request", request, "response", response),
+                        systemMessage
+                );
+            }
+
             String refreshToken = cookieUtility.readCookieValue(request, "refresh_token");
             if (refreshToken == null) {
-                return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, null);
+                throw new APIException(
+                        SystemMessageType.TOKEN_NOT_FOUND,
+                        user.getId(),
+                        Map.of("request", request, "response", response, "user", user),
+                        systemMessage
+                );
             }
 
             // Find stored token for user and verify match
             RefreshTokens stored = refreshTokenRepository.findByTokenHash(refreshToken).orElse(null);
             if (stored == null || stored.getExpiresAt().isBefore(Instant.now())) {
-                return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, null);
-            }
-
-            Long userId = stored.getId().getUserId();
-
-            Users user = userRepository.findById(userId).orElse(null);
-            if (user == null) {
-                return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, null);
+                throw new APIException(
+                        SystemMessageType.TOKEN_NOT_FOUND_OR_EXPIRED,
+                        user.getId(),
+                        Map.of("request", request, "response", response, "user", user),
+                        systemMessage
+                );
             }
 
             // Rotate tokens
@@ -126,29 +140,41 @@ public class AuthController {
             response.addHeader(HttpHeaders.SET_COOKIE,
                     cookieUtility.createHttpOnlyCookie("refresh_token", newRefresh, 30 * 24 * 60 * 60).toString());
 
-            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, user.getId());
+            return new APIResponse<>(SystemMessageType.SUCCESS, null, systemMessage);
         } catch (Exception e) {
-            return new ApiResponse<>(SystemMessageType.ERROR, systemMessage, null, null, null);
+            throw new APIException(
+                    SystemMessageType.SERVER_ERROR,
+                    null,
+                    Map.of("request", request, "response", response),
+                    systemMessage);
         }
     }
 
 
     @PostMapping("/logout")
-    public ApiResponse<Object> logout(
+    public APIResponse<Void> logout(
             @RequestAttribute("user") Users user,
             HttpServletRequest request,
             HttpServletResponse response) {
-        if (user.getId() != null) {
-            refreshTokenRepository.deleteById_UserIdAndId_Device(user.getId(), "Macbook");
+        try {
+            if (user.getId() != null) {
+                refreshTokenRepository.deleteById_UserIdAndId_Device(user.getId(), "Macbook");
+            }
+
+            // Clear cookies
+            ResponseCookie clearAccess = ResponseCookie.from("access_token", "").httpOnly(true).path("/").maxAge(0).build();
+            ResponseCookie clearRefresh = ResponseCookie.from("refresh_token", "").httpOnly(true).path("/").maxAge(0).build();
+
+            response.addHeader(HttpHeaders.SET_COOKIE, clearAccess.toString());
+            response.addHeader(HttpHeaders.SET_COOKIE, clearRefresh.toString());
+
+            return new APIResponse<>(SystemMessageType.SUCCESS, null, systemMessage);
+        } catch (Exception e) {
+            throw new APIException(
+                    SystemMessageType.SERVER_ERROR,
+                    null,
+                    Map.of("request", request, "response", response, "user", user),
+                    systemMessage);
         }
-
-        // Clear cookies
-        ResponseCookie clearAccess = ResponseCookie.from("access_token", "").httpOnly(true).path("/").maxAge(0).build();
-        ResponseCookie clearRefresh = ResponseCookie.from("refresh_token", "").httpOnly(true).path("/").maxAge(0).build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, clearAccess.toString());
-        response.addHeader(HttpHeaders.SET_COOKIE, clearRefresh.toString());
-
-        return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, user.getId());
     }
 }

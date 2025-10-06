@@ -1,6 +1,6 @@
 package com.example.covault.configs;
 
-import com.example.covault.dtos.ApiResponse;
+import com.example.covault.dtos.APIResponse;
 import com.example.covault.enums.SystemMessageType;
 import com.example.covault.utils.ZZZSystemMessagesUtility;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,24 +11,26 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.Map;
 
 @Component
 public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    
+    private final ZZZSystemMessagesUtility systemMessagesUtility;
+
+    public CustomAuthEntryPoint(ZZZSystemMessagesUtility systemMessagesUtility) {
+        this.systemMessagesUtility = systemMessagesUtility;
+    }
+
     @Override
     public void commence(HttpServletRequest request,
                          HttpServletResponse response,
                          AuthenticationException authException) throws IOException {
 
-        ApiResponse<Void> apiResponse = new ApiResponse<>(
+        APIResponse<Void> apiResponse = new APIResponse<>(
                 SystemMessageType.UNAUTHORIZED,
-                new ZZZSystemMessagesUtility(new SystemMessagesCache()),
                 null,
-                Map.of("request", request, "response", response, "authException", authException),
-                null
+                systemMessagesUtility
         );
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
