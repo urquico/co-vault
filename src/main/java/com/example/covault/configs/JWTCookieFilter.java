@@ -1,6 +1,8 @@
 package com.example.covault.configs;
 
+import com.example.covault.entities.Users;
 import com.example.covault.exceptions.InvalidJWTException;
+import com.example.covault.repositories.UserRepository;
 import com.example.covault.utils.CookieUtility;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -24,6 +26,7 @@ import java.io.IOException;
 public class JWTCookieFilter extends OncePerRequestFilter {
     private final UserDetailsService userDetailsService;
     private final CookieUtility cookieUtility;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
@@ -36,6 +39,9 @@ public class JWTCookieFilter extends OncePerRequestFilter {
                         userDetails, null, userDetails.getAuthorities()
                 );
                 SecurityContextHolder.getContext().setAuthentication(auth);
+
+                Users user = userRepository.findById(userId).orElse(null);
+                request.setAttribute("user", user);
             } catch (JwtException e) {
                 // Unauthenticated
                 log.error(e.getMessage());

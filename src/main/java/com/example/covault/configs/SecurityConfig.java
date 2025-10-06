@@ -44,7 +44,7 @@ public class SecurityConfig {
 
     @Bean
     public JWTCookieFilter jwtCookieFilter(UserDetailsService userDetailsService) {
-        return new JWTCookieFilter(userDetailsService, cookieUtility);
+        return new JWTCookieFilter(userDetailsService, cookieUtility, userRepository);
     }
 
     @Bean

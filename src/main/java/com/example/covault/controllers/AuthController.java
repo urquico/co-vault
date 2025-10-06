@@ -16,13 +16,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -39,11 +37,11 @@ public class AuthController {
             @RequestBody LoginRequestDto req,
             HttpServletResponse response
     ) {
-        try {
-            Users user = userRepository.findByEmail(req.getEmail()).orElse(null);
-            if (user == null)
-                return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
+        Users user = userRepository.findByEmail(req.getEmail()).orElse(null);
+        if (user == null)
+            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, null);
 
+        try {
             String accessToken = jwtUtility.generateAccessToken(user.getId(), user.getEmail());
             String refreshToken = jwtUtility.generateRefreshToken();
 
@@ -51,6 +49,7 @@ public class AuthController {
             RefreshTokens refreshTokens = refreshTokenRepository.findById_UserIdAndId_Device(user.getId(), "Macbook").orElse(null);
             Instant now = Instant.now();
 
+            // Upsert token
             if (refreshTokens == null) {
                 refreshTokens = new RefreshTokens();
                 RefreshTokensId refreshTokenId = new RefreshTokensId();
@@ -74,56 +73,73 @@ public class AuthController {
             response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
             response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
-            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
+            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, user.getId());
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            return new ApiResponse<>(
+                    SystemMessageType.ERROR,
+                    systemMessage,
+                    null,
+                    Map.of(
+                            "errorMessage", e.getMessage(),
+                            "exception", e
+                    ),
+                    user.getId()
+            );
         }
     }
 
     @PostMapping("/refresh")
-    public ApiResponse<Object> refresh(HttpServletRequest request, HttpServletResponse response) {
-        String refreshToken = cookieUtility.readCookieValue(request, "refresh_token");
-        if (refreshToken == null) {
-            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
+    public ApiResponse<Object> refresh(
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        try {
+            String refreshToken = cookieUtility.readCookieValue(request, "refresh_token");
+            if (refreshToken == null) {
+                return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, null);
+            }
+
+            // Find stored token for user and verify match
+            RefreshTokens stored = refreshTokenRepository.findByTokenHash(refreshToken).orElse(null);
+            if (stored == null || stored.getExpiresAt().isBefore(Instant.now())) {
+                return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, null);
+            }
+
+            Long userId = stored.getId().getUserId();
+
+            Users user = userRepository.findById(userId).orElse(null);
+            if (user == null) {
+                return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, null);
+            }
+
+            // Rotate tokens
+            String newAccess = jwtUtility.generateAccessToken(user.getId(), user.getEmail());
+            String newRefresh = jwtUtility.generateRefreshToken();
+            Instant now = Instant.now();
+
+            stored.setTokenHash(newRefresh); // store directly or hashed
+            stored.setExpiresAt(now.plus(1, ChronoUnit.DAYS));
+            stored.setUpdatedAt(now);
+            refreshTokenRepository.save(stored);
+
+            response.addHeader(HttpHeaders.SET_COOKIE,
+                    cookieUtility.createHttpOnlyCookie("access_token", newAccess, 15 * 60).toString());
+            response.addHeader(HttpHeaders.SET_COOKIE,
+                    cookieUtility.createHttpOnlyCookie("refresh_token", newRefresh, 30 * 24 * 60 * 60).toString());
+
+            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, user.getId());
+        } catch (Exception e) {
+            return new ApiResponse<>(SystemMessageType.ERROR, systemMessage, null, null, null);
         }
-
-        // Find stored token for user and verify match
-        RefreshTokens stored = refreshTokenRepository.findByTokenHash(refreshToken).orElse(null);
-        if (stored == null || stored.getExpiresAt().isBefore(Instant.now())) {
-            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
-        }
-
-        Long userId = stored.getId().getUserId();
-
-        Users user = userRepository.findById(userId).orElse(null);
-        if (user == null) {
-            return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
-        }
-
-        // Rotate tokens
-        String newAccess = jwtUtility.generateAccessToken(user.getId(), user.getEmail());
-        String newRefresh = jwtUtility.generateRefreshToken();
-        Instant now = Instant.now();
-
-        stored.setTokenHash(newRefresh); // store directly or hashed
-        stored.setExpiresAt(now.plus(1, ChronoUnit.DAYS));
-        stored.setUpdatedAt(now);
-        refreshTokenRepository.save(stored);
-
-        response.addHeader(HttpHeaders.SET_COOKIE,
-                cookieUtility.createHttpOnlyCookie("access_token", newAccess, 15 * 60).toString());
-        response.addHeader(HttpHeaders.SET_COOKIE,
-                cookieUtility.createHttpOnlyCookie("refresh_token", newRefresh, 30 * 24 * 60 * 60).toString());
-
-        return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
     }
 
 
     @PostMapping("/logout")
-    public ApiResponse<Object> logout(HttpServletRequest request, HttpServletResponse response) {
-        Long userId = cookieUtility.getUserIdFromAccessCookie(request);
-        if (userId != null) {
-            refreshTokenRepository.deleteById_UserIdAndId_Device(userId, "Macbook");
+    public ApiResponse<Object> logout(
+            @RequestAttribute("user") Users user,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        if (user.getId() != null) {
+            refreshTokenRepository.deleteById_UserIdAndId_Device(user.getId(), "Macbook");
         }
 
         // Clear cookies
@@ -133,6 +149,6 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, clearAccess.toString());
         response.addHeader(HttpHeaders.SET_COOKIE, clearRefresh.toString());
 
-        return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null);
+        return new ApiResponse<>(SystemMessageType.SUCCESS, systemMessage, null, null, user.getId());
     }
 }

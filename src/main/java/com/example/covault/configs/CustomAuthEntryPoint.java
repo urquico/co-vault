@@ -11,6 +11,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.Map;
 
 @Component
 public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
@@ -23,8 +24,10 @@ public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
                          AuthenticationException authException) throws IOException {
 
         ApiResponse<Void> apiResponse = new ApiResponse<>(
-                SystemMessageType.SUCCESS,
+                SystemMessageType.UNAUTHORIZED,
                 new ZZZSystemMessagesUtility(new SystemMessagesCache()),
+                null,
+                Map.of("request", request, "response", response, "authException", authException),
                 null
         );
 

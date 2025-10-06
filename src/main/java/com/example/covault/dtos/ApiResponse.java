@@ -22,7 +22,7 @@ public class ApiResponse<T> {
     @Setter
     private static DBLogsUtility logger;
 
-    public ApiResponse(SystemMessageType systemMessageType, ZZZSystemMessagesUtility systemMessagesUtility, T data) {
+    public ApiResponse(SystemMessageType systemMessageType, ZZZSystemMessagesUtility systemMessagesUtility, T data, Object extraData, Long userId) {
         this.message = systemMessagesUtility.getMessageByKey(systemMessageType).getMessageText();
         this.status = systemMessagesUtility.getMessageByKey(systemMessageType).getStatusCode();
         this.data = data;
@@ -41,8 +41,8 @@ public class ApiResponse<T> {
                         methodName + " (line " + lineNumber + ")",
                         message,
                         Arrays.toString(Thread.currentThread().getStackTrace()),
-                        null,
-                        null
+                        userId,
+                        extraData
                 );
             } catch (Exception e) {
                 System.err.println("Error logging failed: " + e.getMessage());

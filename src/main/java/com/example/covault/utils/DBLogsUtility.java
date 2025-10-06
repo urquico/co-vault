@@ -21,7 +21,7 @@ public class DBLogsUtility {
             String message,
             String stackTrace,
             Long userId,
-            String extraData
+            Object extraData
     ) {
         ZZZErrorLogs log = new ZZZErrorLogs();
         log.setTimestamp(LocalDateTime.now());
@@ -31,7 +31,7 @@ public class DBLogsUtility {
         log.setMessage(message);
         log.setStackTrace(stackTrace);
         log.setUserId(userId);
-        log.setExtraData(extraData);
+        if (extraData != null) log.setExtraData(extraData.toString());
 
         errorLogsRepository.save(log);
     }
