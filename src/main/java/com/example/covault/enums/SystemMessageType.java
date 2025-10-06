@@ -2,6 +2,7 @@ package com.example.covault.enums;
 
 public enum SystemMessageType {
     SUCCESS,
+    CREATED,
     UNAUTHORIZED,
     USER_NOT_FOUND,
     SERVER_ERROR,
