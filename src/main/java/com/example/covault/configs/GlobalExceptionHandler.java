@@ -5,33 +5,37 @@ import com.example.covault.entities.ZZZSystemMessages;
 import com.example.covault.exceptions.APIException;
 import com.example.covault.utils.DBLogsUtility;
 import com.example.covault.utils.ZZZSystemMessagesUtility;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Arrays;
 
 @RequiredArgsConstructor
-@ControllerAdvice
+@RestControllerAdvice
 public class GlobalExceptionHandler {
     private final ZZZSystemMessagesUtility systemMessageUtility;
     private final DBLogsUtility logger;
 
     @ExceptionHandler(APIException.class)
-    public APIResponse<Object> handleAPIException(APIException ex) {
+    public ResponseEntity<APIResponse<Object>> handleAPIException(APIException ex, HttpServletResponse servletResponse) {
+        // Prevent double-writing errors
+        if (servletResponse.isCommitted()) {
+            System.err.println("⚠️ Response already committed, skipping APIException write.");
+            return null;
+        }
+
         ZZZSystemMessages systemMessage = systemMessageUtility.getMessageByKey(ex.getType());
 
-        // Create error logs
+        // Log error safely
         try {
-            String[] callerInfo = logger.getCallerInfo();
-            String className = callerInfo[0];
-            String methodName = callerInfo[1];
-            String lineNumber = callerInfo[2];
-
+            String[] callerInfo = logger.getCallerInfo(ex.getOriginStackTrace());
             logger.createErrorLogs(
                     systemMessage.getMessageType(),
-                    className,
-                    methodName + " (line " + lineNumber + ")",
+                    callerInfo[0],
+                    callerInfo[1] + " (line " + callerInfo[2] + ")",
                     ex.getMessage(),
                     Arrays.toString(Thread.currentThread().getStackTrace()),
                     ex.getUserId(),
@@ -41,10 +45,14 @@ public class GlobalExceptionHandler {
             System.err.println("Error logging failed: " + e.getMessage());
         }
 
-        return new APIResponse<>(
+        int status = systemMessage.getStatusCode();
+
+        APIResponse<Object> response = new APIResponse<>(
                 ex.getType(),
                 null,
                 systemMessageUtility
         );
+
+        return ResponseEntity.status(status).body(response);
     }
 }

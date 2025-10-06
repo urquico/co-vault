@@ -43,7 +43,7 @@ public class AuthController {
             throw new APIException(
                     SystemMessageType.USER_NOT_FOUND,
                     null,
-                    Map.of("req", req, "response", response),
+                    Map.of("req", req),
                     systemMessage
             );
 
@@ -84,7 +84,7 @@ public class AuthController {
             throw new APIException(
                     SystemMessageType.SERVER_ERROR,
                     null,
-                    Map.of("req", req, "response", response),
+                    Map.of("req", req),
                     systemMessage);
         }
     }
@@ -99,7 +99,7 @@ public class AuthController {
                 throw new APIException(
                         SystemMessageType.USER_NOT_FOUND,
                         null,
-                        Map.of("request", request, "response", response),
+                        null,
                         systemMessage
                 );
             }
@@ -109,7 +109,7 @@ public class AuthController {
                 throw new APIException(
                         SystemMessageType.TOKEN_NOT_FOUND,
                         user.getId(),
-                        Map.of("request", request, "response", response, "user", user),
+                        Map.of("user", user),
                         systemMessage
                 );
             }
@@ -120,7 +120,7 @@ public class AuthController {
                 throw new APIException(
                         SystemMessageType.TOKEN_NOT_FOUND_OR_EXPIRED,
                         user.getId(),
-                        Map.of("request", request, "response", response, "user", user),
+                        Map.of("user", user),
                         systemMessage
                 );
             }
@@ -145,7 +145,7 @@ public class AuthController {
             throw new APIException(
                     SystemMessageType.SERVER_ERROR,
                     null,
-                    Map.of("request", request, "response", response),
+                    null,
                     systemMessage);
         }
     }
@@ -173,7 +173,7 @@ public class AuthController {
             throw new APIException(
                     SystemMessageType.SERVER_ERROR,
                     null,
-                    Map.of("request", request, "response", response, "user", user),
+                    Map.of("user", user),
                     systemMessage);
         }
     }
