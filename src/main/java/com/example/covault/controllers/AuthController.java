@@ -5,13 +5,14 @@ import com.example.covault.dtos.auth.LoginRequestDto;
 import com.example.covault.entities.RefreshTokens;
 import com.example.covault.entities.RefreshTokensId;
 import com.example.covault.entities.Users;
+import com.example.covault.enums.ActivityType;
 import com.example.covault.enums.SystemMessageType;
 import com.example.covault.exceptions.APIException;
 import com.example.covault.repositories.RefreshTokenRepository;
 import com.example.covault.repositories.UserRepository;
 import com.example.covault.utils.CookieUtility;
 import com.example.covault.utils.JWTUtility;
-import com.example.covault.utils.ZZZSystemMessagesUtility;
+import com.example.covault.utils.ZZZCacheMessagesUtility;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -31,28 +32,29 @@ public class AuthController {
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
     private final CookieUtility cookieUtility;
-    private final ZZZSystemMessagesUtility systemMessage;
+    private final ZZZCacheMessagesUtility cacheMessagesUtility;
 
     @PostMapping("/login")
     public APIResponse<Void> login(
             @RequestBody LoginRequestDto req,
+//            @RequestAttribute("device") String device,
             HttpServletResponse response
     ) {
+        String device = "Mac";
         Users user = userRepository.findByEmail(req.getEmail()).orElse(null);
         if (user == null)
             throw new APIException(
                     SystemMessageType.USER_NOT_FOUND,
                     null,
-                    Map.of("req", req),
-                    systemMessage
+                    Map.of("req", req)
             );
 
         try {
-            String accessToken = jwtUtility.generateAccessToken(user.getId(), user.getEmail());
+            String accessToken = jwtUtility.generateAccessToken(user.getEmail());
             String refreshToken = jwtUtility.generateRefreshToken();
 
             // Find existing token
-            RefreshTokens refreshTokens = refreshTokenRepository.findById_UserIdAndId_Device(user.getId(), "Macbook").orElse(null);
+            RefreshTokens refreshTokens = refreshTokenRepository.findById_EmailAndId_Device(user.getEmail(), device).orElse(null);
             Instant now = Instant.now();
 
             // Upsert token
@@ -60,8 +62,8 @@ public class AuthController {
                 refreshTokens = new RefreshTokens();
                 RefreshTokensId refreshTokenId = new RefreshTokensId();
 
-                refreshTokenId.setUserId(user.getId());
-                refreshTokenId.setDevice("Macbook");
+                refreshTokenId.setEmail(user.getEmail());
+                refreshTokenId.setDevice(device);
 
                 refreshTokens.setId(refreshTokenId);
                 refreshTokens.setCreatedAt(now);
@@ -79,13 +81,13 @@ public class AuthController {
             response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
             response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
-            return new APIResponse<>(SystemMessageType.SUCCESS, null, systemMessage);
+            return new APIResponse<>(SystemMessageType.SUCCESS, null, ActivityType.LOGIN);
         } catch (Exception e) {
             throw new APIException(
                     SystemMessageType.SERVER_ERROR,
                     null,
-                    Map.of("req", req),
-                    systemMessage);
+                    Map.of("req", req, "errorMessage", e.getMessage(), "user", user, "device", device)
+            );
         }
     }
 
@@ -99,8 +101,7 @@ public class AuthController {
                 throw new APIException(
                         SystemMessageType.USER_NOT_FOUND,
                         null,
-                        null,
-                        systemMessage
+                        null
                 );
             }
 
@@ -108,9 +109,8 @@ public class AuthController {
             if (refreshToken == null) {
                 throw new APIException(
                         SystemMessageType.TOKEN_NOT_FOUND,
-                        user.getId(),
-                        Map.of("user", user),
-                        systemMessage
+                        user.getEmail(),
+                        Map.of("user", user)
                 );
             }
 
@@ -119,14 +119,13 @@ public class AuthController {
             if (stored == null || stored.getExpiresAt().isBefore(Instant.now())) {
                 throw new APIException(
                         SystemMessageType.TOKEN_NOT_FOUND_OR_EXPIRED,
-                        user.getId(),
-                        Map.of("user", user),
-                        systemMessage
+                        user.getEmail(),
+                        Map.of("user", user)
                 );
             }
 
             // Rotate tokens
-            String newAccess = jwtUtility.generateAccessToken(user.getId(), user.getEmail());
+            String newAccess = jwtUtility.generateAccessToken(user.getEmail());
             String newRefresh = jwtUtility.generateRefreshToken();
             Instant now = Instant.now();
 
@@ -140,13 +139,13 @@ public class AuthController {
             response.addHeader(HttpHeaders.SET_COOKIE,
                     cookieUtility.createHttpOnlyCookie("refresh_token", newRefresh, 30 * 24 * 60 * 60).toString());
 
-            return new APIResponse<>(SystemMessageType.SUCCESS, null, systemMessage);
+            return new APIResponse<>(SystemMessageType.SUCCESS, null, null);
         } catch (Exception e) {
             throw new APIException(
                     SystemMessageType.SERVER_ERROR,
                     null,
-                    null,
-                    systemMessage);
+                    Map.of("req", request, "errorMessage", e.getMessage(), "user", user)
+            );
         }
     }
 
@@ -154,11 +153,12 @@ public class AuthController {
     @PostMapping("/logout")
     public APIResponse<Void> logout(
             @RequestAttribute("user") Users user,
+            @RequestAttribute("device") String device,
             HttpServletRequest request,
             HttpServletResponse response) {
         try {
-            if (user.getId() != null) {
-                refreshTokenRepository.deleteById_UserIdAndId_Device(user.getId(), "Macbook");
+            if (user.getEmail() != null) {
+                refreshTokenRepository.deleteById_EmailAndId_Device(user.getEmail(), device);
             }
 
             // Clear cookies
@@ -168,13 +168,13 @@ public class AuthController {
             response.addHeader(HttpHeaders.SET_COOKIE, clearAccess.toString());
             response.addHeader(HttpHeaders.SET_COOKIE, clearRefresh.toString());
 
-            return new APIResponse<>(SystemMessageType.SUCCESS, null, systemMessage);
+            return new APIResponse<>(SystemMessageType.SUCCESS, null, ActivityType.LOGOUT);
         } catch (Exception e) {
             throw new APIException(
                     SystemMessageType.SERVER_ERROR,
                     null,
-                    Map.of("user", user),
-                    systemMessage);
+                    Map.of("user", user, "req", request, "errorMessage", e.getMessage(), "device", device)
+            );
         }
     }
 }

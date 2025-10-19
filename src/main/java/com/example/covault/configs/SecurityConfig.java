@@ -27,19 +27,19 @@ public class SecurityConfig {
     @Bean
     public UserDetailsService userDetailsService() {
         return userIdString -> {
-            Long userId;
+            String email;
             try {
-                userId = Long.parseLong(userIdString);
+                email = userIdString;
             } catch (NumberFormatException e) {
                 throw new UsernameNotFoundException("Invalid user ID: " + userIdString);
             }
 
-            return userRepository.findById(userId)
+            return userRepository.findByEmail(email)
                     .map(user -> User.withUsername(user.getEmail()) // username here can be email
                             .password("{noop}") // no password stored yet
                             .roles("USER")
                             .build())
-                    .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userId));
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
         };
     }
 

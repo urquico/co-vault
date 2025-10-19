@@ -4,7 +4,7 @@ import com.example.covault.dtos.APIResponse;
 import com.example.covault.entities.ZZZSystemMessages;
 import com.example.covault.exceptions.APIException;
 import com.example.covault.utils.DBLogsUtility;
-import com.example.covault.utils.ZZZSystemMessagesUtility;
+import com.example.covault.utils.ZZZCacheMessagesUtility;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +16,7 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    private final ZZZSystemMessagesUtility systemMessageUtility;
+    private final ZZZCacheMessagesUtility systemMessageUtility;
     private final DBLogsUtility logger;
 
     @ExceptionHandler(APIException.class)
@@ -27,7 +27,7 @@ public class GlobalExceptionHandler {
             return null;
         }
 
-        ZZZSystemMessages systemMessage = systemMessageUtility.getMessageByKey(ex.getType());
+        ZZZSystemMessages systemMessage = systemMessageUtility.getSystemMessageByKey(ex.getType());
 
         // Log error safely
         try {
@@ -38,7 +38,7 @@ public class GlobalExceptionHandler {
                     callerInfo[1] + " (line " + callerInfo[2] + ")",
                     ex.getMessage(),
                     Arrays.toString(Thread.currentThread().getStackTrace()),
-                    ex.getUserId(),
+                    ex.getEmail(),
                     ex.getMetadata()
             );
         } catch (Exception e) {
@@ -50,7 +50,7 @@ public class GlobalExceptionHandler {
         APIResponse<Object> response = new APIResponse<>(
                 ex.getType(),
                 null,
-                systemMessageUtility
+                null
         );
 
         return ResponseEntity.status(status).body(response);

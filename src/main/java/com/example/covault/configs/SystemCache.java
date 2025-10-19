@@ -1,5 +1,6 @@
 package com.example.covault.configs;
 
+import com.example.covault.entities.ZZZActivityMessages;
 import com.example.covault.entities.ZZZSystemMessages;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,5 +12,6 @@ import java.util.List;
 @Getter
 @Setter
 public class SystemCache {
-    private List<ZZZSystemMessages> messages;
+    private List<ZZZSystemMessages> systemMessages;
+    private List<ZZZActivityMessages> activityMessages;
 }

@@ -17,9 +17,9 @@ public class JWTUtility {
     @Value("${spring.application.jwt.secret}")
     private String jwtSecret;
 
-    public String generateAccessToken(Long userId, String email) {
+    public String generateAccessToken(String email) {
         return Jwts.builder()
-                .setSubject(String.valueOf(userId)) // userId as subject
+                .setSubject(email) // userId as subject
                 .claim("email", email) // store email as claim
                 .setIssuedAt(new Date())
                 .setExpiration(Date.from(Instant.now().plus(15, ChronoUnit.MINUTES)))

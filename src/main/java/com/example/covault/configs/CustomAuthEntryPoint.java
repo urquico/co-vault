@@ -2,7 +2,7 @@ package com.example.covault.configs;
 
 import com.example.covault.dtos.APIResponse;
 import com.example.covault.enums.SystemMessageType;
-import com.example.covault.utils.ZZZSystemMessagesUtility;
+import com.example.covault.utils.ZZZCacheMessagesUtility;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,10 +16,10 @@ import java.io.IOException;
 public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final ZZZSystemMessagesUtility systemMessagesUtility;
+    private final ZZZCacheMessagesUtility cacheMessagesUtility;
 
-    public CustomAuthEntryPoint(ZZZSystemMessagesUtility systemMessagesUtility) {
-        this.systemMessagesUtility = systemMessagesUtility;
+    public CustomAuthEntryPoint(ZZZCacheMessagesUtility cacheMessagesUtility) {
+        this.cacheMessagesUtility = cacheMessagesUtility;
     }
 
     @Override
@@ -30,7 +30,7 @@ public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
         APIResponse<Void> apiResponse = new APIResponse<>(
                 SystemMessageType.UNAUTHORIZED,
                 null,
-                systemMessagesUtility
+                null
         );
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

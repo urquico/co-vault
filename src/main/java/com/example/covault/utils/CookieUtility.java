@@ -37,7 +37,7 @@ public class CookieUtility {
         return null;
     }
 
-    public Long getUserIdFromAccessCookie(HttpServletRequest request) {
+    public String getEmailFromAccessCookie(HttpServletRequest request) {
         String token = readCookieValue(request, "access_token");
         if (token == null) return null;
 
@@ -48,7 +48,7 @@ public class CookieUtility {
                     .parseClaimsJws(token)
                     .getBody();
 
-            return Long.parseLong(claims.getSubject()); // now safe
+            return claims.getSubject();
         } catch (Exception e) {
             e.printStackTrace();
             return null;

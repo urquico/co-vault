@@ -12,15 +12,15 @@ import java.util.Objects;
 @Setter
 public class RefreshTokensId implements Serializable {
 
-    private Long userId;
+    private String email;
 
     private String device;
 
     public RefreshTokensId() {
     }
 
-    public RefreshTokensId(Long userId, String device) {
-        this.userId = userId;
+    public RefreshTokensId(String email, String device) {
+        this.email = email;
         this.device = device;
     }
 
@@ -29,12 +29,12 @@ public class RefreshTokensId implements Serializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         RefreshTokensId that = (RefreshTokensId) o;
-        return Objects.equals(userId, that.userId) &&
+        return Objects.equals(email, that.email) &&
                 Objects.equals(device, that.device);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(userId, device);
+        return Objects.hash(email, device);
     }
 }

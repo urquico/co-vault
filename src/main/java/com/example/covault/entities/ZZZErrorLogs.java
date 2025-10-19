@@ -36,7 +36,7 @@ public class ZZZErrorLogs {
     private String stackTrace;
 
     @Column
-    private Long userId;
+    private String email;
 
     @Column(columnDefinition = "JSON")
     private String extraData;
