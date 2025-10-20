@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
-import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -37,26 +36,28 @@ public class AuthController {
     private final ZZZCacheMessagesUtility cacheMessagesUtility;
     private final PasswordEncoder passwordEncoder;
 
+//    @PostMapping("register")
+
     @PostMapping("/login")
     public APIResponse<Void> login(
             @RequestBody LoginRequestDto req,
             @RequestAttribute("device") String device,
-            HttpServletResponse response
+            HttpServletResponse response,
+            HttpServletRequest request
     ) {
         try {
+            request.setAttribute("email", req.getEmail());
+
             Users user = userRepository.findByEmail(req.getEmail()).orElse(null);
             if (user == null)
                 throw new APIException(
                         SystemMessageType.USER_NOT_FOUND,
-                        req.getEmail(),
                         Map.of("req", req, "device", device)
                 );
 
-//            if (!passwordEncoder.matches(req.getPassword(), user.getPassword()))
-            if (!Objects.equals(req.getPassword(), user.getPassword()))
+            if (!passwordEncoder.matches(req.getPassword(), user.getPassword()))
                 throw new APIException(
                         SystemMessageType.INCORRECT_PASSWORD,
-                        req.getEmail(),
                         Map.of("req", req, "device", device)
                 );
 
@@ -95,7 +96,6 @@ public class AuthController {
         } catch (APIException e) {
             throw new APIException(
                     e.getMessage(),
-                    null,
                     Map.of("req", req, "errorMessage", e.getMessage(), "device", device)
             );
         }
@@ -110,7 +110,6 @@ public class AuthController {
             if (user == null) {
                 throw new APIException(
                         SystemMessageType.USER_NOT_FOUND,
-                        null,
                         null
                 );
             }
@@ -119,7 +118,6 @@ public class AuthController {
             if (refreshToken == null) {
                 throw new APIException(
                         SystemMessageType.TOKEN_NOT_FOUND,
-                        user.getEmail(),
                         Map.of("user", user)
                 );
             }
@@ -129,7 +127,6 @@ public class AuthController {
             if (stored == null || stored.getExpiresAt().isBefore(Instant.now())) {
                 throw new APIException(
                         SystemMessageType.TOKEN_NOT_FOUND_OR_EXPIRED,
-                        user.getEmail(),
                         Map.of("user", user)
                 );
             }
@@ -153,7 +150,6 @@ public class AuthController {
         } catch (Exception e) {
             throw new APIException(
                     SystemMessageType.SERVER_ERROR,
-                    null,
                     Map.of("req", request, "errorMessage", e.getMessage(), "user", user)
             );
         }
@@ -182,7 +178,6 @@ public class AuthController {
         } catch (Exception e) {
             throw new APIException(
                     SystemMessageType.SERVER_ERROR,
-                    null,
                     Map.of("user", user, "req", request, "errorMessage", e.getMessage(), "device", device)
             );
         }

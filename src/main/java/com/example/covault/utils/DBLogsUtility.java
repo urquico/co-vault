@@ -64,9 +64,13 @@ public class DBLogsUtility {
             String methodName,
             String message,
             String stackTrace,
-            String email,
             Object extraData
     ) {
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder
+                .currentRequestAttributes()).getRequest();
+
+        String email = request.getAttribute("email").toString();
+
         ZZZErrorLogs log = new ZZZErrorLogs();
         log.setTimestamp(LocalDateTime.now());
         log.setErrorType(errorType);
@@ -88,8 +92,6 @@ public class DBLogsUtility {
     }
 
     public String[] getCallerInfo(StackTraceElement[] stackTrace) {
-        boolean foundController = false;
-
         for (StackTraceElement element : stackTrace) {
             String className = element.getClassName();
 

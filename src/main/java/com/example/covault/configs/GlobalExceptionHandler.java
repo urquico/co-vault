@@ -39,7 +39,6 @@ public class GlobalExceptionHandler {
                     callerInfo[1] + " (line " + callerInfo[2] + ")",
                     ex.getMessage(),
                     Arrays.toString(Thread.currentThread().getStackTrace()),
-                    ex.getEmail(),
                     ex.getMetadata()
             );
         } catch (Exception e) {

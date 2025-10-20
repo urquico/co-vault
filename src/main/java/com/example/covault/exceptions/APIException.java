@@ -11,7 +11,6 @@ import lombok.Setter;
 @Getter
 public class APIException extends RuntimeException {
     private final SystemMessageType type;
-    private final String email;
     private final Object metadata;
     private final StackTraceElement[] originStackTrace;
 
@@ -19,23 +18,21 @@ public class APIException extends RuntimeException {
     @JsonIgnore
     private static ZZZCacheMessagesUtility cacheMessagesUtility;
 
-    public APIException(SystemMessageType type, String email, Object metadata) {
+    public APIException(SystemMessageType type, Object metadata) {
         ZZZSystemMessages systemMessage = cacheMessagesUtility.getSystemMessageByKey(type);
 
         super(systemMessage == null ? type.name() : systemMessage.getMessageText());
         this.type = type;
-        this.email = email;
         this.metadata = metadata;
         this.originStackTrace = Thread.currentThread().getStackTrace(); // capture at creation time
     }
 
-    public APIException(String errorMessage, String email, Object metadata) {
+    public APIException(String errorMessage, Object metadata) {
         ZZZSystemMessages systemMessage = cacheMessagesUtility.getSystemKeyByMessage(errorMessage);
 
         super(errorMessage);
 
         this.type = systemMessage == null ? SystemMessageType.valueOf(errorMessage) : SystemMessageType.valueOf(systemMessage.getMessageKey());
-        this.email = email;
         this.metadata = metadata;
         this.originStackTrace = Thread.currentThread().getStackTrace(); // capture at creation time
     }
