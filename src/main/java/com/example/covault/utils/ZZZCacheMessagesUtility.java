@@ -22,6 +22,14 @@ public class ZZZCacheMessagesUtility {
                 .orElse(null);
     }
 
+    public ZZZSystemMessages getSystemKeyByMessage(String message) {
+        return systemCache.getSystemMessages()
+                .stream()
+                .filter(m -> m.getMessageText().equalsIgnoreCase(message))
+                .findFirst()
+                .orElse(null);
+    }
+
     public ZZZActivityMessages getActivityMessageByKey(ActivityType key) {
         return systemCache.getActivityMessages()
                 .stream()

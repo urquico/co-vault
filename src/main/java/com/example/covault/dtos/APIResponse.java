@@ -42,8 +42,8 @@ public class APIResponse<T> {
             dbLogsUtility.createActivityLogs(activityMessage.getMessageText(), oldData, newData);
         }
 
-        this.message = systemMessage.getMessageText();
-        this.status = systemMessage.getStatusCode();
+        this.message = systemMessage == null ? systemMessageType.name() : systemMessage.getMessageText();
+        this.status = systemMessage == null ? 500 : systemMessage.getStatusCode();
         this.data = data;
     }
 }

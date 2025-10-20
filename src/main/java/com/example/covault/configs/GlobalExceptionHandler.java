@@ -2,6 +2,7 @@ package com.example.covault.configs;
 
 import com.example.covault.dtos.APIResponse;
 import com.example.covault.entities.ZZZSystemMessages;
+import com.example.covault.enums.MessageType;
 import com.example.covault.exceptions.APIException;
 import com.example.covault.utils.DBLogsUtility;
 import com.example.covault.utils.ZZZCacheMessagesUtility;
@@ -33,7 +34,7 @@ public class GlobalExceptionHandler {
         try {
             String[] callerInfo = logger.getCallerInfo(ex.getOriginStackTrace());
             logger.createErrorLogs(
-                    systemMessage.getMessageType(),
+                    systemMessage == null ? MessageType.ERROR : systemMessage.getMessageType(),
                     callerInfo[0],
                     callerInfo[1] + " (line " + callerInfo[2] + ")",
                     ex.getMessage(),
@@ -45,7 +46,7 @@ public class GlobalExceptionHandler {
             System.err.println("Error logging failed: " + e.getMessage());
         }
 
-        int status = systemMessage.getStatusCode();
+        int status = systemMessage == null ? 500 : systemMessage.getStatusCode();
 
         APIResponse<Object> response = new APIResponse<>(
                 ex.getType(),

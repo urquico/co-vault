@@ -18,11 +18,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -33,23 +35,31 @@ public class AuthController {
     private final UserRepository userRepository;
     private final CookieUtility cookieUtility;
     private final ZZZCacheMessagesUtility cacheMessagesUtility;
+    private final PasswordEncoder passwordEncoder;
 
     @PostMapping("/login")
     public APIResponse<Void> login(
             @RequestBody LoginRequestDto req,
-//            @RequestAttribute("device") String device,
+            @RequestAttribute("device") String device,
             HttpServletResponse response
     ) {
-        String device = "Mac";
-        Users user = userRepository.findByEmail(req.getEmail()).orElse(null);
-        if (user == null)
-            throw new APIException(
-                    SystemMessageType.USER_NOT_FOUND,
-                    null,
-                    Map.of("req", req)
-            );
-
         try {
+            Users user = userRepository.findByEmail(req.getEmail()).orElse(null);
+            if (user == null)
+                throw new APIException(
+                        SystemMessageType.USER_NOT_FOUND,
+                        req.getEmail(),
+                        Map.of("req", req, "device", device)
+                );
+
+//            if (!passwordEncoder.matches(req.getPassword(), user.getPassword()))
+            if (!Objects.equals(req.getPassword(), user.getPassword()))
+                throw new APIException(
+                        SystemMessageType.INCORRECT_PASSWORD,
+                        req.getEmail(),
+                        Map.of("req", req, "device", device)
+                );
+
             String accessToken = jwtUtility.generateAccessToken(user.getEmail());
             String refreshToken = jwtUtility.generateRefreshToken();
 
@@ -82,11 +92,11 @@ public class AuthController {
             response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
             return new APIResponse<>(SystemMessageType.SUCCESS, null, ActivityType.LOGIN);
-        } catch (Exception e) {
+        } catch (APIException e) {
             throw new APIException(
-                    SystemMessageType.SERVER_ERROR,
+                    e.getMessage(),
                     null,
-                    Map.of("req", req, "errorMessage", e.getMessage(), "user", user, "device", device)
+                    Map.of("req", req, "errorMessage", e.getMessage(), "device", device)
             );
         }
     }

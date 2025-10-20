@@ -1,6 +1,5 @@
 package com.example.covault.utils;
 
-import com.example.covault.entities.Users;
 import com.example.covault.entities.ZZZActivityLogs;
 import com.example.covault.entities.ZZZErrorLogs;
 import com.example.covault.enums.CoVaultTableType;
@@ -16,7 +15,6 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -47,13 +45,7 @@ public class DBLogsUtility {
 
         ZZZActivityLogs log = new ZZZActivityLogs();
 
-        Optional<Users> user = userRepository.findByEmail(email);
-
-        if (user.isEmpty())
-            log.setEmail("");
-        else
-            log.setEmail(user.get().getEmail());
-
+        log.setEmail(email);
         log.setIpAddress(ipAddress);
         log.setActivity(activity);
         log.setUserAgent(userAgent);
