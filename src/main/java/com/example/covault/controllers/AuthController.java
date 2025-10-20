@@ -3,22 +3,19 @@ package com.example.covault.controllers;
 import com.example.covault.dtos.APIResponse;
 import com.example.covault.dtos.auth.LoginRequestDto;
 import com.example.covault.entities.RefreshTokens;
-import com.example.covault.entities.RefreshTokensId;
 import com.example.covault.entities.Users;
 import com.example.covault.enums.ActivityType;
 import com.example.covault.enums.SystemMessageType;
 import com.example.covault.exceptions.APIException;
 import com.example.covault.repositories.RefreshTokenRepository;
-import com.example.covault.repositories.UserRepository;
+import com.example.covault.services.AuthService;
 import com.example.covault.utils.CookieUtility;
 import com.example.covault.utils.JWTUtility;
-import com.example.covault.utils.ZZZCacheMessagesUtility;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -31,11 +28,10 @@ import java.util.Map;
 public class AuthController {
     private final JWTUtility jwtUtility;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final UserRepository userRepository;
     private final CookieUtility cookieUtility;
-    private final ZZZCacheMessagesUtility cacheMessagesUtility;
-    private final PasswordEncoder passwordEncoder;
+    private final AuthService authService;
 
+    // TODO: Create register endpoint
 //    @PostMapping("register")
 
     @PostMapping("/login")
@@ -47,52 +43,7 @@ public class AuthController {
     ) {
         try {
             request.setAttribute("email", req.getEmail());
-
-            Users user = userRepository.findByEmail(req.getEmail()).orElse(null);
-            if (user == null)
-                throw new APIException(
-                        SystemMessageType.USER_NOT_FOUND,
-                        Map.of("req", req, "device", device)
-                );
-
-            if (!passwordEncoder.matches(req.getPassword(), user.getPassword()))
-                throw new APIException(
-                        SystemMessageType.INCORRECT_PASSWORD,
-                        Map.of("req", req, "device", device)
-                );
-
-            String accessToken = jwtUtility.generateAccessToken(user.getEmail());
-            String refreshToken = jwtUtility.generateRefreshToken();
-
-            // Find existing token
-            RefreshTokens refreshTokens = refreshTokenRepository.findById_EmailAndId_Device(user.getEmail(), device).orElse(null);
-            Instant now = Instant.now();
-
-            // Upsert token
-            if (refreshTokens == null) {
-                refreshTokens = new RefreshTokens();
-                RefreshTokensId refreshTokenId = new RefreshTokensId();
-
-                refreshTokenId.setEmail(user.getEmail());
-                refreshTokenId.setDevice(device);
-
-                refreshTokens.setId(refreshTokenId);
-                refreshTokens.setCreatedAt(now);
-            }
-
-            refreshTokens.setTokenHash(refreshToken);
-            refreshTokens.setExpiresAt(now.plus(1, ChronoUnit.DAYS));
-            refreshTokens.setUpdatedAt(now);
-
-            refreshTokenRepository.save(refreshTokens);
-
-            ResponseCookie accessCookie = cookieUtility.createHttpOnlyCookie("access_token", accessToken, 15 * 60);
-            ResponseCookie refreshCookie = cookieUtility.createHttpOnlyCookie("refresh_token", refreshToken, 1 * 24 * 60 * 60);
-
-            response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
-            response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
-
-            return new APIResponse<>(SystemMessageType.SUCCESS, null, ActivityType.LOGIN);
+            return authService.login(req, device, response);
         } catch (APIException e) {
             throw new APIException(
                     e.getMessage(),
